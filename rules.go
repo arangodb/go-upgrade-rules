@@ -1,0 +1,50 @@
+//
+// DISCLAIMER
+//
+// Copyright 2018 ArangoDB GmbH, Cologne, Germany
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+// Copyright holder is ArangoDB GmbH, Cologne, Germany
+//
+// Author Ewout Prangsma
+//
+
+package upgraderules
+
+import (
+	"fmt"
+
+	driver "github.com/arangodb/go-driver"
+)
+
+// CheckUpgradeRules checks if it is allowed to upgrade an ArangoDB
+// deployment from given `from` version to given `to` version.
+// If this is allowed, nil is returned, otherwise and error is
+// returning describing why the upgrade is not allowed.
+func CheckUpgradeRules(from, to driver.Version) error {
+	// Image changed, check if change is allowed
+	if from.Major() != to.Major() {
+		// E.g. 3.x -> 4.x, we cannot allow automatically
+		return fmt.Errorf("Major versions are different")
+	}
+	if from.Minor() != to.Minor() {
+		// Only allow upgrade from 3.x to 3.y when y=x+1
+		if from.Minor()+1 != to.Minor() {
+			return fmt.Errorf("Minor versions may only increment by 1")
+		}
+	} else {
+		// Patch version only diff. That is allowed in upgrade & downgrade.
+	}
+	return nil
+}
