@@ -51,14 +51,62 @@ func TestCheckUpgradeRules(t *testing.T) {
 		{"3.2.88", "3.2.rc7", true},
 	}
 	for _, test := range tests {
-		err := CheckUpgradeRules(test.From, test.To)
-		if test.Allowed {
-			if err != nil {
-				t.Errorf("%s -> %s should be valid, got %s", test.From, test.To, err)
+		// Without license
+		{
+			err := CheckUpgradeRules(test.From, test.To)
+			if test.Allowed {
+				if err != nil {
+					t.Errorf("%s -> %s should be valid, got %s", test.From, test.To, err)
+				}
+			} else {
+				if err == nil {
+					t.Errorf("%s -> %s should be invalid, got valid", test.From, test.To)
+				}
 			}
-		} else {
+		}
+		// Same license
+		{
+			err := CheckUpgradeRulesWithLicense(test.From, test.To, LicenseCommunity, LicenseCommunity)
+			if test.Allowed {
+				if err != nil {
+					t.Errorf("(C->C) %s -> %s should be valid, got %s", test.From, test.To, err)
+				}
+			} else {
+				if err == nil {
+					t.Errorf("(C->C) %s -> %s should be invalid, got valid", test.From, test.To)
+				}
+			}
+		}
+		{
+			err := CheckUpgradeRulesWithLicense(test.From, test.To, LicenseEnterprise, LicenseEnterprise)
+			if test.Allowed {
+				if err != nil {
+					t.Errorf("(E->E) %s -> %s should be valid, got %s", test.From, test.To, err)
+				}
+			} else {
+				if err == nil {
+					t.Errorf("(E->E) %s -> %s should be invalid, got valid", test.From, test.To)
+				}
+			}
+		}
+		// Community license -> Enterprise
+		{
+			err := CheckUpgradeRulesWithLicense(test.From, test.To, LicenseCommunity, LicenseEnterprise)
+			if test.Allowed {
+				if err != nil {
+					t.Errorf("(C->E) %s -> %s should be valid, got %s", test.From, test.To, err)
+				}
+			} else {
+				if err == nil {
+					t.Errorf("(C->E) %s -> %s should be invalid, got valid", test.From, test.To)
+				}
+			}
+		}
+		// Enterprise license -> Community
+		{
+			err := CheckUpgradeRulesWithLicense(test.From, test.To, LicenseEnterprise, LicenseCommunity)
 			if err == nil {
-				t.Errorf("%s -> %s should be invalid, got valid", test.From, test.To)
+				t.Errorf("(E->C) %s -> %s should be invalid, got valid", test.From, test.To)
 			}
 		}
 	}

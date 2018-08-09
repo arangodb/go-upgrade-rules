@@ -28,6 +28,16 @@ import (
 	driver "github.com/arangodb/go-driver"
 )
 
+// License is a strongly typed ArangoDB license type
+type License int
+
+const (
+	// LicenseCommunity is this license for the ArangoDB community edition
+	LicenseCommunity License = iota
+	// LicenseEnterprise is this license for the ArangoDB enterprise edition
+	LicenseEnterprise
+)
+
 // CheckUpgradeRules checks if it is allowed to upgrade an ArangoDB
 // deployment from given `from` version to given `to` version.
 // If this is allowed, nil is returned, otherwise and error is
@@ -47,4 +57,16 @@ func CheckUpgradeRules(from, to driver.Version) error {
 		// Patch version only diff. That is allowed in upgrade & downgrade.
 	}
 	return nil
+}
+
+// CheckUpgradeRulesWithLicense checks if it is allowed to upgrade an ArangoDB
+// deployment from given `fromVersion` version to given `toVersion` version.
+// If also includes the given `fromLicense` and `toLicense` in this check.
+// If this is allowed, nil is returned, otherwise and error is
+// returning describing why the upgrade is not allowed.
+func CheckUpgradeRulesWithLicense(fromVersion, toVersion driver.Version, fromLicense, toLicense License) error {
+	if fromLicense != toLicense && fromLicense == LicenseEnterprise {
+		return fmt.Errorf("Upgrade from Enterprise to Community edition is not possible")
+	}
+	return CheckUpgradeRules(fromVersion, toVersion)
 }
