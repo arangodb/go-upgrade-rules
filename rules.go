@@ -72,7 +72,7 @@ func CheckSoftUpgradeRules(from, to driver.Version) error {
 	}
 	if from.Minor() != to.Minor() {
 		// Only allow upgrade from 3.x to 3.y when y > x
-		if from.Minor() < to.Minor() {
+		if from.Minor() > to.Minor() {
 			return fmt.Errorf("Downgrade is not possible")
 		}
 	} else {
