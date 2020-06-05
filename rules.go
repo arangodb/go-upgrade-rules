@@ -59,6 +59,28 @@ func CheckUpgradeRules(from, to driver.Version) error {
 	return nil
 }
 
+// CheckSoftUpgradeRules checks if it is allowed to upgrade an ArangoDB
+// deployment from given `from` version to given `to` version.
+// If this is allowed, nil is returned, otherwise and error is
+// returning describing why the upgrade is not allowed.
+// This function allows to jump more than one minor version.
+func CheckSoftUpgradeRules(from, to driver.Version) error {
+	// Image changed, check if change is allowed
+	if from.Major() != to.Major() {
+		// E.g. 3.x -> 4.x, we cannot allow automatically
+		return fmt.Errorf("Major versions are different")
+	}
+	if from.Minor() != to.Minor() {
+		// Only allow upgrade from 3.x to 3.y when y=x+1
+		if from.Minor() < to.Minor() {
+			return fmt.Errorf("Downgrade is not possible")
+		}
+	} else {
+		// Patch version only diff. That is allowed in upgrade & downgrade.
+	}
+	return nil
+}
+
 // CheckUpgradeRulesWithLicense checks if it is allowed to upgrade an ArangoDB
 // deployment from given `fromVersion` version to given `toVersion` version.
 // If also includes the given `fromLicense` and `toLicense` in this check.
@@ -69,4 +91,17 @@ func CheckUpgradeRulesWithLicense(fromVersion, toVersion driver.Version, fromLic
 		return fmt.Errorf("Upgrade from Enterprise to Community edition is not possible")
 	}
 	return CheckUpgradeRules(fromVersion, toVersion)
+}
+
+// CheckUpgradeRulesWithLicense checks if it is allowed to upgrade an ArangoDB
+// deployment from given `fromVersion` version to given `toVersion` version.
+// If also includes the given `fromLicense` and `toLicense` in this check.
+// If this is allowed, nil is returned, otherwise and error is
+// returning describing why the upgrade is not allowed.
+// This function allows to jump more than one minor version.
+func CheckSoftUpgradeRulesWithLicense(fromVersion, toVersion driver.Version, fromLicense, toLicense License) error {
+	if fromLicense != toLicense && fromLicense == LicenseEnterprise {
+		return fmt.Errorf("Upgrade from Enterprise to Community edition is not possible")
+	}
+	return CheckSoftUpgradeRules(fromVersion, toVersion)
 }
