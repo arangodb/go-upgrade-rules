@@ -56,17 +56,17 @@ func TestCheckUpgradeRules(t *testing.T) {
 		{"3.2.1", "3.5.rc7", true, true},
 	}
 	for _, test := range tests {
-		ur := CheckUpgradeRules
-		urwl := CheckUpgradeRulesWithLicense
+		checkUpgradeRules := CheckUpgradeRules
+		checkUpgradeRulesWithLicense := CheckUpgradeRulesWithLicense
 
 		if test.Soft {
-			ur = CheckSoftUpgradeRules
-			urwl = CheckSoftUpgradeRulesWithLicense
+			checkUpgradeRules = CheckSoftUpgradeRules
+			checkUpgradeRulesWithLicense = CheckSoftUpgradeRulesWithLicense
 		}
 
 		// Without license
 		{
-			err := ur(test.From, test.To)
+			err := checkUpgradeRules(test.From, test.To)
 			if test.Allowed {
 				if err != nil {
 					t.Errorf("%s -> %s should be valid, got %s", test.From, test.To, err)
@@ -79,7 +79,7 @@ func TestCheckUpgradeRules(t *testing.T) {
 		}
 		// Same license
 		{
-			err := urwl(test.From, test.To, LicenseCommunity, LicenseCommunity)
+			err := checkUpgradeRulesWithLicense(test.From, test.To, LicenseCommunity, LicenseCommunity)
 			if test.Allowed {
 				if err != nil {
 					t.Errorf("(C->C) %s -> %s should be valid, got %s", test.From, test.To, err)
@@ -91,7 +91,7 @@ func TestCheckUpgradeRules(t *testing.T) {
 			}
 		}
 		{
-			err := urwl(test.From, test.To, LicenseEnterprise, LicenseEnterprise)
+			err := checkUpgradeRulesWithLicense(test.From, test.To, LicenseEnterprise, LicenseEnterprise)
 			if test.Allowed {
 				if err != nil {
 					t.Errorf("(E->E) %s -> %s should be valid, got %s", test.From, test.To, err)
@@ -104,7 +104,7 @@ func TestCheckUpgradeRules(t *testing.T) {
 		}
 		// Community license -> Enterprise
 		{
-			err := urwl(test.From, test.To, LicenseCommunity, LicenseEnterprise)
+			err := checkUpgradeRulesWithLicense(test.From, test.To, LicenseCommunity, LicenseEnterprise)
 			if test.Allowed {
 				if err != nil {
 					t.Errorf("(C->E) %s -> %s should be valid, got %s", test.From, test.To, err)
@@ -117,7 +117,7 @@ func TestCheckUpgradeRules(t *testing.T) {
 		}
 		// Enterprise license -> Community
 		{
-			err := urwl(test.From, test.To, LicenseEnterprise, LicenseCommunity)
+			err := checkUpgradeRulesWithLicense(test.From, test.To, LicenseEnterprise, LicenseCommunity)
 			if err == nil {
 				t.Errorf("(E->C) %s -> %s should be invalid, got valid", test.From, test.To)
 			}
