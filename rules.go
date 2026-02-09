@@ -25,7 +25,7 @@ package upgraderules
 import (
 	"fmt"
 
-	driver "github.com/arangodb/go-driver"
+	driver "github.com/arangodb/go-driver/v2/arangodb"
 )
 
 // License is a strongly typed ArangoDB license type
