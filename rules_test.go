@@ -25,7 +25,7 @@ package upgraderules
 import (
 	"testing"
 
-	driver "github.com/arangodb/go-driver"
+	driver "github.com/arangodb/go-driver/v2/arangodb"
 )
 
 func TestCheckUpgradeRules(t *testing.T) {
@@ -33,7 +33,7 @@ func TestCheckUpgradeRules(t *testing.T) {
 		From    driver.Version
 		To      driver.Version
 		Allowed bool
-		Soft bool
+		Soft    bool
 	}{
 		// Same version
 		{"1.2.3", "1.2.3", true, false},
