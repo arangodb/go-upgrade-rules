@@ -25,7 +25,7 @@ package upgraderules
 import (
 	"testing"
 
-	driver "github.com/arangodb/go-driver/v2/arangodb"
+	driver "github.com/arangodb/go-driver"
 )
 
 func TestCheckUpgradeRules(t *testing.T) {

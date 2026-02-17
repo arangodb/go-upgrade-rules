@@ -27,7 +27,7 @@ import (
 	"strconv"
 	"strings"
 
-	driver "github.com/arangodb/go-driver/v2/arangodb"
+	driver "github.com/arangodb/go-driver"
 )
 
 // License is a strongly typed ArangoDB license type
