@@ -59,11 +59,15 @@ func TestCheckUpgradeRules(t *testing.T) {
 		// Same upgrade tested with both checkers: 4th=false → CheckUpgradeRules, 4th=true → CheckSoftUpgradeRules
 		{"3.12.7", "4.0.0", true, false}, // 4th=false: run with CheckUpgradeRules (strict), expect allowed
 		{"3.12.7", "4.0.0", true, true},  // 4th=true:  run with CheckSoftUpgradeRules (soft), expect allowed
+		{"3.12.7-rc1", "4.0.0", true, false},
+		{"3.12.7-rc1", "4.0.0", true, true},
 		{"3.12.8", "4.0.0", true, false},
 		{"3.12.0", "4.0.0", false, false}, // strict: patch < 7
 		{"3.12.0", "4.0.0", false, true},
 		{"3.12.6", "4.0.0", false, false},
 		{"3.12.6", "4.0.0", false, true},
+		{"3.12.rc7", "4.0.0", false, false},
+		{"3.12.rc7", "4.0.0", false, true},
 
 		{"3.11.0", "4.0.0", false, false}, // unlisted source minor must remain disallowed
 		{"3.11.0", "4.0.0", false, true},
