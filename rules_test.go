@@ -74,6 +74,10 @@ func TestCheckUpgradeRules(t *testing.T) {
 		{"3.3.2", "3.5.10", false, false}, // skip minor
 		{"3.2.2", "3.3.11111", true, false},
 
+		// --- Major: skipping a major (e.g., 3.x → 5.x) must be rejected ---
+		{"3.12.7", "5.0.0", false, false}, // strict: major may only increment by 1
+		{"3.12.7", "5.0.0", false, true},  // soft: still disallow skipping major versions
+
 		// --- Same major & minor, patch: always allowed ---
 		{"3.2.2", "3.2.88", true, false},
 		{"3.2.88", "3.2.8", true, false},
