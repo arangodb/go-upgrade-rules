@@ -24,6 +24,8 @@ package upgraderules
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 
 	driver "github.com/arangodb/go-driver/v2/arangodb"
 )
@@ -38,24 +40,133 @@ const (
 	LicenseEnterprise
 )
 
+// minPatchForMajorUpgrade defines the minimum source patch version required
+// for an upgrade to the next major X.0. Key is "fromMajor.fromMinor" (e.g. "3.12").
+// Example: 3.12.7+ is required to upgrade to 4.0.
+var minPatchForMajorUpgrade = map[string]int{
+	"3.12": 7, // 3.12.x → 4.0 requires at least 3.12.7
+}
+
+// parsePatch extracts the numeric patch version (third component) from a driver.Version
+// and reports whether the patch component has a valid format.
+//
+// driver.Version does not expose a Patch() method, so we parse the string form.
+// Examples of supported formats:
+//
+//	"3.12.7"        → 7
+//	"3.12.7-rc1"    → 7
+//	"3.12.7rc1"     → 7
+//
+// Unsupported patch formats include values that do not start with a digit,
+// e.g. "3.12.rc1".
+func parsePatch(v driver.Version) (int, bool) {
+	// Convert version to string (e.g. "3.12.7" or "3.12.7-rc1")
+	s := fmt.Sprint(v)
+
+	// Split by dot: ["3", "12", "7"] or ["3", "12", "7-rc1"]
+	parts := strings.Split(s, ".")
+
+	// If there are fewer than 3 components, patch is not present
+	if len(parts) < 3 {
+		return 0, false
+	}
+
+	// Extract the patch component (may include suffix like "-rc1")
+	patchStr := parts[2]
+	if patchStr == "" {
+		return 0, false
+	}
+
+	// Reject patch components that do not start with a digit (e.g. "3.12.rc1").
+	// Such versions are invalid for minimum-patch checks and are rejected here.
+	if patchStr[0] < '0' || patchStr[0] > '9' {
+		return 0, false
+	}
+
+	// Strip any non-digit suffix (e.g. "7-rc1" → "7")
+	// We stop at the first non-numeric character.
+	for i, r := range patchStr {
+		if r < '0' || r > '9' {
+			patchStr = patchStr[:i]
+			break
+		}
+	}
+
+	// Convert cleaned numeric string to integer
+	p, err := strconv.Atoi(patchStr)
+	if err != nil {
+		return 0, false
+	}
+
+	return p, true
+}
+
+// checkMinPatchForMajorUpgrade returns an error if from→to is a major upgrade
+// that requires a minimum patch and from does not satisfy it.
+func checkMinPatchForMajorUpgrade(from, to driver.Version) error {
+	if to.Major() != from.Major()+1 || to.Minor() != 0 {
+		return nil
+	}
+	key := fmt.Sprintf("%d.%d", from.Major(), from.Minor())
+	minPatch, hasRule := minPatchForMajorUpgrade[key]
+	if !hasRule {
+		return fmt.Errorf("Major versions are different: major upgrade from %d.%d to %d.0 is not allowed", from.Major(), from.Minor(), to.Major())
+	}
+	patch, ok := parsePatch(from)
+	if !ok {
+		return fmt.Errorf("Invalid source version format for major upgrade: expected numeric patch in %s", from)
+	}
+	if patch >= minPatch {
+		return nil
+	}
+	return fmt.Errorf("Upgrade to %d.0 requires at least %d.%d.%d", to.Major(), from.Major(), from.Minor(), minPatch)
+}
+
 // CheckUpgradeRules checks if it is allowed to upgrade an ArangoDB
 // deployment from given `from` version to given `to` version.
 // If this is allowed, nil is returned, otherwise and error is
 // returning describing why the upgrade is not allowed.
 func CheckUpgradeRules(from, to driver.Version) error {
-	// Image changed, check if change is allowed
+
+	// ---- Major version change ----
 	if from.Major() != to.Major() {
-		// E.g. 3.x -> 4.x, we cannot allow automatically
-		return fmt.Errorf("Major versions are different")
+
+		// Disallow downgrade
+		if to.Major() < from.Major() {
+			return fmt.Errorf("Major versions are different: downgrade of major version is not allowed")
+		}
+
+		// Only allow upgrade to next major version
+		if to.Major() != from.Major()+1 {
+			return fmt.Errorf("Major versions are different: major versions may only increment by 1")
+		}
+
+		// Only allow upgrade to X.0 (e.g. 3.12.x → 4.0.x)
+		if to.Minor() != 0 {
+			return fmt.Errorf("Major versions are different: major upgrades are only allowed to X.0")
+		}
+
+		if err := checkMinPatchForMajorUpgrade(from, to); err != nil {
+			return err
+		}
+		return nil
 	}
+
+	// ---- Minor version change (same major) ----
 	if from.Minor() != to.Minor() {
-		// Only allow upgrade from 3.x to 3.y when y=x+1
-		if from.Minor()+1 != to.Minor() {
+
+		// Disallow downgrade
+		if to.Minor() < from.Minor() {
+			return fmt.Errorf("Downgrade of minor version is not allowed")
+		}
+
+		// Only allow increment by 1
+		if to.Minor() != from.Minor()+1 {
 			return fmt.Errorf("Minor versions may only increment by 1")
 		}
-	} else {
-		// Patch version only diff. That is allowed in upgrade & downgrade.
 	}
+
+	// Patch changes always allowed
 	return nil
 }
 
@@ -65,19 +176,41 @@ func CheckUpgradeRules(from, to driver.Version) error {
 // returning describing why the upgrade is not allowed.
 // This function allows to jump more than one minor version.
 func CheckSoftUpgradeRules(from, to driver.Version) error {
-	// Image changed, check if change is allowed
+
+	// ---- Major version change ----
 	if from.Major() != to.Major() {
-		// E.g. 3.x -> 4.x, we cannot allow automatically
-		return fmt.Errorf("Major versions are different")
-	}
-	if from.Minor() != to.Minor() {
-		// Only allow upgrade from 3.x to 3.y when y > x
-		if from.Minor() > to.Minor() {
-			return fmt.Errorf("Downgrade is not possible")
+
+		// Disallow major downgrade
+		if to.Major() < from.Major() {
+			return fmt.Errorf("Major versions are different: downgrade of major version is not allowed")
 		}
-	} else {
-		// Patch version only diff. That is allowed in upgrade & downgrade.
+
+		// Only allow upgrade to next major version
+		if to.Major() != from.Major()+1 {
+			return fmt.Errorf("Major versions are different: major versions may only increment by 1")
+		}
+
+		// Only allow upgrade to X.0
+		if to.Minor() != 0 {
+			return fmt.Errorf("Major versions are different: major upgrades are only allowed to X.0")
+		}
+
+		// Enforce minimum patch requirement (e.g. 3.12.7 → 4.0)
+		if err := checkMinPatchForMajorUpgrade(from, to); err != nil {
+			return err
+		}
+
+		return nil
 	}
+
+	// ---- Same major version ----
+	// Only major/minor rules: no minimum-patch for minor upgrades.
+	// (Minimum-patch applies only to major upgrade 3.12.7+ → 4.0.)
+
+	if to.Minor() < from.Minor() {
+		return fmt.Errorf("Downgrade of minor version is not allowed")
+	}
+
 	return nil
 }
 
