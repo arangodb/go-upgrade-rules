@@ -23,6 +23,7 @@
 package upgraderules
 
 import (
+	"strings"
 	"testing"
 
 	driver "github.com/arangodb/go-driver/v2/arangodb"
@@ -47,9 +48,11 @@ func TestCheckUpgradeRules(t *testing.T) {
 	}{
 		// --- Same version ---
 		{"1.2.3", "1.2.3", true, false},
+		{"1.2.3", "1.2.3", true, true},
 
 		// --- Major: downgrade always invalid ---
 		{"2.2.3", "1.2.3", false, false},
+		{"2.2.3", "1.2.3", false, true},
 		{"1.2.3", "2.2.3", false, false}, // 1→2 but to 2.2 not 2.0, invalid
 
 		// --- Major: 3.x → 4.0 only with 3.12.7+ (minPatchForMajorUpgrade) ---
@@ -64,6 +67,7 @@ func TestCheckUpgradeRules(t *testing.T) {
 
 		{"3.11.0", "4.0.0", false, false}, // unlisted source minor must remain disallowed
 		{"3.11.0", "4.0.0", false, true},
+		{"3.12.7", "4.1.0", false, false}, // strict: major upgrade to non-X.0 must be rejected
 		{"3.12.7", "4.1.0", false, true},
 		{"3.12.0", "4.1.0", false, true},
 
@@ -97,6 +101,7 @@ func TestCheckUpgradeRules(t *testing.T) {
 
 		// --- Downgrade ---
 		{"4.1.0", "4.0.0", false, false},
+		{"4.1.0", "4.0.0", false, true},
 	}
 	for _, test := range tests {
 		checkUpgradeRules := CheckUpgradeRules
@@ -165,5 +170,39 @@ func TestCheckUpgradeRules(t *testing.T) {
 				t.Errorf("(E->C) %s -> %s should be invalid, got valid", test.From, test.To)
 			}
 		}
+	}
+}
+
+func TestMalformedSourcePatchForMajorUpgrade(t *testing.T) {
+	tests := []struct {
+		name  string
+		from  driver.Version
+		to    driver.Version
+		check func(driver.Version, driver.Version) error
+	}{
+		{
+			name:  "strict checker rejects non-numeric patch component",
+			from:  "3.12.rc1",
+			to:    "4.0.0",
+			check: CheckUpgradeRules,
+		},
+		{
+			name:  "soft checker rejects non-numeric patch component",
+			from:  "3.12.rc1",
+			to:    "4.0.0",
+			check: CheckSoftUpgradeRules,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			err := test.check(test.from, test.to)
+			if err == nil {
+				t.Fatalf("expected invalid version format error, got nil")
+			}
+			if !strings.Contains(err.Error(), "Invalid source version format") {
+				t.Fatalf("expected invalid source version format error, got: %s", err)
+			}
+		})
 	}
 }
