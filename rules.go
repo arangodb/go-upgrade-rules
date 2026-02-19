@@ -47,7 +47,8 @@ var minPatchForMajorUpgrade = map[string]int{
 	"3.12": 7, // 3.12.x → 4.0 requires at least 3.12.7
 }
 
-// getPatch extracts the numeric patch version (third component) from a driver.Version.
+// parsePatch extracts the numeric patch version (third component) from a driver.Version
+// and reports whether the patch component has a valid format.
 //
 // driver.Version does not expose a Patch() method, so we parse the string form.
 // Examples of supported formats:
@@ -56,9 +57,9 @@ var minPatchForMajorUpgrade = map[string]int{
 //	"3.12.7-rc1"    → 7
 //	"3.12.7rc1"     → 7
 //
-// If the version does not contain a valid numeric patch component,
-// the function safely returns 0.
-func getPatch(v driver.Version) int {
+// Unsupported patch formats include values that do not start with a digit,
+// e.g. "3.12.rc1".
+func parsePatch(v driver.Version) (int, bool) {
 	// Convert version to string (e.g. "3.12.7" or "3.12.7-rc1")
 	s := fmt.Sprint(v)
 
@@ -67,11 +68,20 @@ func getPatch(v driver.Version) int {
 
 	// If there are fewer than 3 components, patch is not present
 	if len(parts) < 3 {
-		return 0
+		return 0, false
 	}
 
 	// Extract the patch component (may include suffix like "-rc1")
 	patchStr := parts[2]
+	if patchStr == "" {
+		return 0, false
+	}
+
+	// Reject patch components that do not start with a digit (e.g. "3.12.rc1").
+	// Such versions are invalid for minimum-patch checks and are rejected here.
+	if patchStr[0] < '0' || patchStr[0] > '9' {
+		return 0, false
+	}
 
 	// Strip any non-digit suffix (e.g. "7-rc1" → "7")
 	// We stop at the first non-numeric character.
@@ -85,11 +95,10 @@ func getPatch(v driver.Version) int {
 	// Convert cleaned numeric string to integer
 	p, err := strconv.Atoi(patchStr)
 	if err != nil {
-		// If conversion fails, return 0 as a safe fallback
-		return 0
+		return 0, false
 	}
 
-	return p
+	return p, true
 }
 
 // checkMinPatchForMajorUpgrade returns an error if from→to is a major upgrade
@@ -103,7 +112,11 @@ func checkMinPatchForMajorUpgrade(from, to driver.Version) error {
 	if !hasRule {
 		return fmt.Errorf("Major versions are different: major upgrade from %d.%d to %d.0 is not allowed", from.Major(), from.Minor(), to.Major())
 	}
-	if getPatch(from) >= minPatch {
+	patch, ok := parsePatch(from)
+	if !ok {
+		return fmt.Errorf("Invalid source version format for major upgrade: expected numeric patch in %s", from)
+	}
+	if patch >= minPatch {
 		return nil
 	}
 	return fmt.Errorf("Upgrade to %d.0 requires at least %d.%d.%d", to.Major(), from.Major(), from.Minor(), minPatch)

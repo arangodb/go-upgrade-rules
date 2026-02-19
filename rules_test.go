@@ -23,6 +23,7 @@
 package upgraderules
 
 import (
+	"strings"
 	"testing"
 
 	driver "github.com/arangodb/go-driver"
@@ -47,23 +48,30 @@ func TestCheckUpgradeRules(t *testing.T) {
 	}{
 		// --- Same version ---
 		{"1.2.3", "1.2.3", true, false},
+		{"1.2.3", "1.2.3", true, true},
 
 		// --- Major: downgrade always invalid ---
 		{"2.2.3", "1.2.3", false, false},
+		{"2.2.3", "1.2.3", false, true},
 		{"1.2.3", "2.2.3", false, false}, // 1→2 but to 2.2 not 2.0, invalid
 
 		// --- Major: 3.x → 4.0 only with 3.12.7+ (minPatchForMajorUpgrade) ---
 		// Same upgrade tested with both checkers: 4th=false → CheckUpgradeRules, 4th=true → CheckSoftUpgradeRules
 		{"3.12.7", "4.0.0", true, false}, // 4th=false: run with CheckUpgradeRules (strict), expect allowed
 		{"3.12.7", "4.0.0", true, true},  // 4th=true:  run with CheckSoftUpgradeRules (soft), expect allowed
+		{"3.12.7-rc1", "4.0.0", true, false},
+		{"3.12.7-rc1", "4.0.0", true, true},
 		{"3.12.8", "4.0.0", true, false},
 		{"3.12.0", "4.0.0", false, false}, // strict: patch < 7
 		{"3.12.0", "4.0.0", false, true},
 		{"3.12.6", "4.0.0", false, false},
 		{"3.12.6", "4.0.0", false, true},
+		{"3.12.rc7", "4.0.0", false, false},
+		{"3.12.rc7", "4.0.0", false, true},
 
 		{"3.11.0", "4.0.0", false, false}, // unlisted source minor must remain disallowed
 		{"3.11.0", "4.0.0", false, true},
+		{"3.12.7", "4.1.0", false, false}, // strict: major upgrade to non-X.0 must be rejected
 		{"3.12.7", "4.1.0", false, true},
 		{"3.12.0", "4.1.0", false, true},
 
@@ -73,6 +81,10 @@ func TestCheckUpgradeRules(t *testing.T) {
 		{"3.3.2", "3.2.10", false, false}, // minor downgrade
 		{"3.3.2", "3.5.10", false, false}, // skip minor
 		{"3.2.2", "3.3.11111", true, false},
+
+		// --- Major: skipping a major (e.g., 3.x → 5.x) must be rejected ---
+		{"3.12.7", "5.0.0", false, false}, // strict: major may only increment by 1
+		{"3.12.7", "5.0.0", false, true},  // soft: still disallow skipping major versions
 
 		// --- Same major & minor, patch: always allowed ---
 		{"3.2.2", "3.2.88", true, false},
@@ -93,6 +105,7 @@ func TestCheckUpgradeRules(t *testing.T) {
 
 		// --- Downgrade ---
 		{"4.1.0", "4.0.0", false, false},
+		{"4.1.0", "4.0.0", false, true},
 	}
 	for _, test := range tests {
 		checkUpgradeRules := CheckUpgradeRules
@@ -161,5 +174,39 @@ func TestCheckUpgradeRules(t *testing.T) {
 				t.Errorf("(E->C) %s -> %s should be invalid, got valid", test.From, test.To)
 			}
 		}
+	}
+}
+
+func TestMalformedSourcePatchForMajorUpgrade(t *testing.T) {
+	tests := []struct {
+		name  string
+		from  driver.Version
+		to    driver.Version
+		check func(driver.Version, driver.Version) error
+	}{
+		{
+			name:  "strict checker rejects non-numeric patch component",
+			from:  "3.12.rc1",
+			to:    "4.0.0",
+			check: CheckUpgradeRules,
+		},
+		{
+			name:  "soft checker rejects non-numeric patch component",
+			from:  "3.12.rc1",
+			to:    "4.0.0",
+			check: CheckSoftUpgradeRules,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			err := test.check(test.from, test.to)
+			if err == nil {
+				t.Fatalf("expected invalid version format error, got nil")
+			}
+			if !strings.Contains(err.Error(), "Invalid source version format") {
+				t.Fatalf("expected invalid source version format error, got: %s", err)
+			}
+		})
 	}
 }
