@@ -55,23 +55,42 @@ func TestCheckUpgradeRules(t *testing.T) {
 		{"2.2.3", "1.2.3", false, true},
 		{"1.2.3", "2.2.3", false, false}, // 1→2 but to 2.2 not 2.0, invalid
 
-		// --- Major: 3.x → 4.0 only with 3.12.7+ (minPatchForMajorUpgrade) ---
-		// Same upgrade tested with both checkers: 4th=false → CheckUpgradeRules, 4th=true → CheckSoftUpgradeRules
-		{"3.12.7", "4.0.0", true, false}, // 4th=false: run with CheckUpgradeRules (strict), expect allowed
-		{"3.12.7", "4.0.0", true, true},  // 4th=true:  run with CheckSoftUpgradeRules (soft), expect allowed
-		{"3.12.7-rc1", "4.0.0", true, false},
-		{"3.12.7-rc1", "4.0.0", true, true},
-		{"3.12.8", "4.0.0", true, false},
-		{"3.12.0", "4.0.0", false, false}, // strict: patch < 7
+		// --- Major: 3.x → 4.0 only with 3.12.9+ (minPatchForMajorUpgrade) ---
+
+		// Rejected: patch < 9 (must upgrade to 3.12.9+ before 4.0)
+		{"3.12.0", "4.0.0", false, false},
 		{"3.12.0", "4.0.0", false, true},
 		{"3.12.6", "4.0.0", false, false},
 		{"3.12.6", "4.0.0", false, true},
+		{"3.12.7", "4.0.0", false, false},
+		{"3.12.7", "4.0.0", false, true},
+		{"3.12.7-rc1", "4.0.0", false, false},
+		{"3.12.7-rc1", "4.0.0", false, true},
+		{"3.12.8", "4.0.0", false, false},
+		{"3.12.8", "4.0.0", false, true},
 		{"3.12.rc7", "4.0.0", false, false},
 		{"3.12.rc7", "4.0.0", false, true},
 
-		{"3.11.0", "4.0.0", false, false}, // unlisted source minor must remain disallowed
+		// Allowed: patch 3.12.9 and 3.12.10 (basis >= 9)
+		{"3.12.9", "4.0.0", true, false},
+		{"3.12.9", "4.0.0", true, true},
+		{"3.12.10", "4.0.0", true, false},
+		{"3.12.10", "4.0.0", true, true},
+
+		// Allowed: hotfixes (3.12.9.x, 3.12.10.x — patch basis is 9 or 10)
+		{"3.12.9.1", "4.0.0", true, false},
+		{"3.12.9.1", "4.0.0", true, true},
+		{"3.12.9.11", "4.0.0", true, false},
+		{"3.12.9.11", "4.0.0", true, true},
+		{"3.12.10.1", "4.0.0", true, false},
+		{"3.12.10.1", "4.0.0", true, true},
+		{"3.12.10.9", "4.0.0", true, false},
+		{"3.12.10.9", "4.0.0", true, true},
+
+		// Rejected: other major-upgrade rules (unlisted minor; target not X.0)
+		{"3.11.0", "4.0.0", false, false},
 		{"3.11.0", "4.0.0", false, true},
-		{"3.12.7", "4.1.0", false, false}, // strict: major upgrade to non-X.0 must be rejected
+		{"3.12.7", "4.1.0", false, false},
 		{"3.12.7", "4.1.0", false, true},
 		{"3.12.0", "4.1.0", false, true},
 
