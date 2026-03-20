@@ -42,7 +42,7 @@ const (
 
 // minPatchForMajorUpgrade defines the minimum source patch version required
 // for an upgrade to the next major X.0. Key is "fromMajor.fromMinor" (e.g. "3.12").
-// Example: 3.12.10+ is required to upgrade to 4.0 (3.12.9 lacks versioned API).
+// Example: 3.12.10+ is required to upgrade to 4.0.
 var minPatchForMajorUpgrade = map[string]int{
 	"3.12": 10, // 3.12.x → 4.0 requires at least 3.12.10
 }
