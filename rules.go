@@ -42,9 +42,9 @@ const (
 
 // minPatchForMajorUpgrade defines the minimum source patch version required
 // for an upgrade to the next major X.0. Key is "fromMajor.fromMinor" (e.g. "3.12").
-// Example: 3.12.9+ is required to upgrade to 4.0.
+// Example: 3.12.10+ is required to upgrade to 4.0.
 var minPatchForMajorUpgrade = map[string]int{
-	"3.12": 9, // 3.12.x → 4.0 requires at least 3.12.9
+	"3.12": 10, // 3.12.x → 4.0 requires at least 3.12.10
 }
 
 // parsePatch extracts the numeric patch version (third component) from a driver.Version
@@ -55,6 +55,7 @@ var minPatchForMajorUpgrade = map[string]int{
 // Actual 3.12 release versioning:
 //   - Patch: 3.12.9 (three components; the third is the patch number).
 //   - Hotfix: 3.12.9.1, 3.12.9.10, … (four components; fourth is [1-9][0-9]*).
+//
 // As of 3.12, patch and hotfix releases are GA-only; only 3.12.0 had alphas, betas, or RCs.
 //
 // The third numeric component is treated as the patch basis. Supported formats include:
@@ -200,7 +201,7 @@ func CheckSoftUpgradeRules(from, to driver.Version) error {
 			return fmt.Errorf("Major versions are different: major upgrades are only allowed to X.0")
 		}
 
-		// Enforce minimum patch requirement (e.g. 3.12.9 → 4.0)
+		// Enforce minimum patch requirement (e.g. 3.12.10 → 4.0)
 		if err := checkMinPatchForMajorUpgrade(from, to); err != nil {
 			return err
 		}
@@ -210,7 +211,7 @@ func CheckSoftUpgradeRules(from, to driver.Version) error {
 
 	// ---- Same major version ----
 	// Only major/minor rules: no minimum-patch for minor upgrades.
-	// (Minimum-patch applies only to major upgrade 3.12.9+ → 4.0.)
+	// (Minimum-patch applies only to major upgrade 3.12.10+ → 4.0.)
 
 	if to.Minor() < from.Minor() {
 		return fmt.Errorf("Downgrade of minor version is not allowed")
