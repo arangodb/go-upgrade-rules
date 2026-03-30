@@ -55,43 +55,41 @@ func TestCheckUpgradeRules(t *testing.T) {
 		{"2.2.3", "1.2.3", false, true},
 		{"1.2.3", "2.2.3", false, false}, // 1→2 but to 2.2 not 2.0, invalid
 
-		// --- Major: 3.x → 4.0 only with 3.12.10+ (minPatchForMajorUpgrade) ---
+		// --- Major: 3.12.x → 4.0 (TEMPORARY: minPatch=0 until 3.12.9 release; then restore 3.12.10+) ---
 
-		// Rejected: patch basis < 10 (plain 3.12.9 and 3.12.9.x hotfixes; upgrade to 3.12.10+ before 4.0)
-		{"3.12.0", "4.0.0", false, false},
-		{"3.12.0", "4.0.0", false, true},
-		{"3.12.6", "4.0.0", false, false},
-		{"3.12.6", "4.0.0", false, true},
-		{"3.12.7", "4.0.0", false, false},
-		{"3.12.7", "4.0.0", false, true},
-		{"3.12.7-rc1", "4.0.0", false, false},
-		{"3.12.7-rc1", "4.0.0", false, true},
-		{"3.12.8", "4.0.0", false, false},
-		{"3.12.8", "4.0.0", false, true},
-		{"3.12.rc7", "4.0.0", false, false},
-		{"3.12.rc7", "4.0.0", false, true},
-		{"3.12.9", "4.0.0", false, false},
-		{"3.12.9", "4.0.0", false, true},
-		{"3.12.9-rc1", "4.0.0", false, false}, // suffix stripped → basis 9 < 10
-		{"3.12.9-rc1", "4.0.0", false, true},
-		{"3.12.9.1", "4.0.0", false, false},
-		{"3.12.9.1", "4.0.0", false, true},
-		{"3.12.9.11", "4.0.0", false, false},
-		{"3.12.9.11", "4.0.0", false, true},
-
-		// Allowed: patch 3.12.10+ (basis >= 10)
+		// Allowed: any 3.12.* with a parseable numeric patch (TEMPORARY)
+		{"3.12.0", "4.0.0", true, false},
+		{"3.12.0", "4.0.0", true, true},
+		{"3.12.6", "4.0.0", true, false},
+		{"3.12.6", "4.0.0", true, true},
+		{"3.12.7", "4.0.0", true, false},
+		{"3.12.7", "4.0.0", true, true},
+		{"3.12.7-rc1", "4.0.0", true, false},
+		{"3.12.7-rc1", "4.0.0", true, true},
+		{"3.12.8", "4.0.0", true, false},
+		{"3.12.8", "4.0.0", true, true},
+		{"3.12.9", "4.0.0", true, false},
+		{"3.12.9", "4.0.0", true, true},
+		{"3.12.9-rc1", "4.0.0", true, false},
+		{"3.12.9-rc1", "4.0.0", true, true},
+		{"3.12.9.1", "4.0.0", true, false},
+		{"3.12.9.1", "4.0.0", true, true},
+		{"3.12.9.11", "4.0.0", true, false},
+		{"3.12.9.11", "4.0.0", true, true},
 		{"3.12.10", "4.0.0", true, false},
 		{"3.12.10", "4.0.0", true, true},
 		{"3.12.11", "4.0.0", true, false},
 		{"3.12.11", "4.0.0", true, true},
-
-		// Allowed: hotfixes on 3.12.10+ (third component is patch basis; e.g. 3.12.10.1)
 		{"3.12.10.1", "4.0.0", true, false},
 		{"3.12.10.1", "4.0.0", true, true},
 		{"3.12.10.9", "4.0.0", true, false},
 		{"3.12.10.9", "4.0.0", true, true},
 		{"3.12.11.8", "4.0.0", true, false},
 		{"3.12.11.8", "4.0.0", true, true},
+
+		// Rejected: non-numeric patch component (still invalid for major-upgrade check)
+		{"3.12.rc7", "4.0.0", false, false},
+		{"3.12.rc7", "4.0.0", false, true},
 
 		// Rejected: other major-upgrade rules (unlisted minor; target not X.0)
 		{"3.11.0", "4.0.0", false, false},
@@ -100,7 +98,7 @@ func TestCheckUpgradeRules(t *testing.T) {
 		{"3.12.7", "4.1.0", false, true},
 		{"3.12.0", "4.1.0", false, false},
 		{"3.12.0", "4.1.0", false, true},
-		{"3.12.10", "4.1.0", false, false}, // min patch OK but major upgrade must target X.0, not 4.1
+		{"3.12.10", "4.1.0", false, false}, // major upgrade must target X.0, not 4.1
 		{"3.12.10", "4.1.0", false, true},
 
 		// --- Same major, minor: strict allows only +1 ---
