@@ -1,8 +1,6 @@
 module github.com/arangodb/go-upgrade-rules
 
-go 1.24.0
-
-toolchain go1.24.12
+go 1.25.0
 
 require github.com/arangodb/go-driver/v2 v2.1.6
 
@@ -15,7 +13,7 @@ require (
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/rs/zerolog v1.34.0 // indirect
-	golang.org/x/net v0.46.0 // indirect
-	golang.org/x/sys v0.37.0 // indirect
-	golang.org/x/text v0.30.0 // indirect
+	golang.org/x/net v0.55.0 // indirect
+	golang.org/x/sys v0.45.0 // indirect
+	golang.org/x/text v0.37.0 // indirect
 )
